@@ -6,7 +6,7 @@ output:
     vertical_layout: fill
     social: menu
     source_code: https://github.com/anishababu62442/Tree-Dashboard
-    theme: yeti
+    theme: spacelab
 editor_options: 
   chunk_output_type: console
 ---
@@ -27,6 +27,8 @@ library(rgdal)
 library(gganimate)
 library(gifski)
 library(png)
+library(nycgeo)
+library(sf)
 
 # IF YOU DO NOT HAVE TREE DATA YET
 tree_census <- read_csv("https://data.cityofnewyork.us/api/views/uvpi-gqnh/rows.csv")
@@ -49,13 +51,7 @@ Column {.tabset}
 
 ### Version 1
 
-```{r}
-# Wanjia: partial string match for names?
-# Hyeonjin: trees per square mile, facet by prominent neighborhoods (Manhattan/Queens/Staten Island)
-# Ping: add subtitles
-# Ping: move legend --> theme(legend.position = c(0.2, 0.7), plot.title = element_text(hjust=0.2))
-
-
+```{r vis 1 ver 1}
 # Count neighborhood trees
 trees_by_neighborhood <- tree_census %>%
   group_by(neighborhood = nta_name) %>%
@@ -74,15 +70,39 @@ ggplot() +
   labs(title = "Tree Density in NYC",
        fill = "Number of Trees") 
 
-# NOTE: neighborhood names do not match perfectly, so some empty neighborhoods
-# CONSIDER: may change to a dot density map
-
 ```
 
 ### Version 2
 
-```{r}
+```{r vis 1 ver 2}
+# Hyeonjin: adding labels, color formatting
+# Ping: adding caption/formatting
 
+# Count neighborhood trees
+trees_by_tract <- tree_census %>%
+  group_by(tract = boro_ct) %>%
+  summarize(num_trees=n()) %>%
+  mutate(tract = as.character(tract))
+
+# join tree & tract data
+nyc_tracts <- nyc_boundaries(geography = "tract")
+tree_tract <- left_join(nyc_tracts, trees_by_tract, by=c("borough_tract_id"="tract"))
+
+# plot map
+tree_tract %>%
+  ggplot() +
+  geom_sf(aes(fill=num_trees), lwd=0) +
+  theme_minimal() +
+  geom_text(x=960000, y=130000, label="Staten\nIsland", color="gray50") +
+  geom_text(x=1045000, y=270000, label="Bronx", color="gray50") +
+  geom_text(x=974800, y=230000, label="Manhattan", color="gray50") +
+  geom_text(x=987000, y=143000, label="Brooklyn", color="gray50") +
+  geom_text(x=1059000, y=230000, label="Queens", color="gray50") +
+  labs(fill = "Number of Trees",
+       title = "Distribution of Trees in NYC",
+       caption = "Gray regions represent census tracts without data") +
+  theme(legend.position = c(0.2, 0.8), plot.title = element_text(hjust=0.2)) +
+  scale_fill_distiller(palette="Greens")
 
 ```
 
@@ -94,18 +114,7 @@ Column {.tabset}
 
 ### Version 1
 
-```{r}
-# Wanjia: reverse X/Y axis, color by type of problem, rank by diameter
-# Vinita: changing to numeric w/ tidyverse: coord_flip()
-# Vinita: tree_census %>% mutate(tree_census, recode("No" = 0, "Yes" = 1)) 
-# Hyeonjin: "BottleRocket1" palette
-# Hyeonjin: theme(axis.text.x = element_text(angle = 60, hjust=1)) + theme_minimal()
-# Hyeonjin: mutate(problem_type = fct_reorder(problem_type, average_dbh)), coord_flip()
-# Ping: add subtitles, what are dbh units
-# Ping: move legend --> theme(legend.position = "none", plot.title = element_text(hjust = -0.5))
-
-
-
+```{r vis 2 ver 1}
 # change values to 0/1 numeric
 tree_census[tree_census == "No"] <- "0"  
 tree_census[tree_census == "Yes"] <- "1"
@@ -152,7 +161,56 @@ tree_damage %>%
 
 ### Version 2
 
-```{r}
+```{r vis 2 ver 2}
+# General: formatting like flip
+# Vinita: simplifying code
+# initially line graph as fxn of number of problems
+
+tree_census[tree_census=="No"] <- 0
+tree_census[tree_census=="Yes"] <- 1
+
+tree_damage <- tree_census %>%
+  filter(problems != "None") %>%
+  pivot_longer(cols = root_stone:brch_other, 
+               names_to = "problem_type", 
+               values_to = "count") %>%
+  group_by(problem_type) %>%
+  filter(count == 1) %>%
+  summarize(average_dbh = mean(tree_dbh)) %>%
+  mutate(problem_type = fct_reorder(problem_type, average_dbh))
+
+tree_damage <- tree_damage %>%
+  mutate(type_color = case_when(
+    startsWith(as.character(problem_type), "br") ~ "Branch",
+    startsWith(as.character(problem_type), "tr") ~ "Trunk",
+    startsWith(as.character(problem_type), "ro") ~ "Root"))
+
+tree_damage$problem_type <- as.factor(tree_damage$problem_type) 
+tree_damage$problem_type <- recode(tree_damage$problem_type, 
+                                   brch_light="Hanging Lights/Wires",
+                                   brch_shoe = "Hanging Shoes",
+                                   brch_other = "Misc Branch",
+                                   trunk_wire = "Wrapped Wire/Rope",
+                                   trnk_light = "Installed Lights",
+                                   trnk_other = "Misc Trunk",
+                                   root_stone = "Paving Stones",
+                                   root_grate = "Metal Grate",
+                                   root_other = "Misc Root")
+
+tree_damage %>%
+  ggplot(aes(x = problem_type, y = average_dbh)) +
+  geom_bar(stat = "identity", aes(fill = type_color), color = "gray50") +
+  labs(title = "Tree Diameter by Problem Type",
+       x = "Problem Type",
+       y = "Average Tree Diameter (in)",
+       fill = "Tree Area") +
+  coord_flip() +
+  scale_fill_brewer(palette="Greens") + 
+  theme(legend.justification=c(1,0), 
+        legend.position=c(1, 0),
+        legend.background = element_blank()) +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "gray90"))
 
 ```
 
@@ -164,11 +222,7 @@ Column {.tabset}
 
 ### Version 1
 
-```{r}
-# maybe animate in sections?
-# Vinita: reduce bar width, increase time?
-# Ping: add subtitles, geom_bar()
-
+```{r vis 3 ver 1}
 tree_species <- tree_census %>%
   group_by(nta_name) %>%
   summarize(num_trees=n(), num_species = length(unique(spc_common))) %>%
@@ -195,6 +249,35 @@ animate(species_plot,fps = 1)
 
 ### Version 2
 
-```{r}
+```{r vis 3 ver 2}
+# maybe animate in sections?
+# Vinita: reduce bar width, increase time?
+# Ping: add subtitles, geom_bar()
+
+# stuck on interactivity, so ...
+# also too many neighborhoods
+
+tree_species <- tree_census %>%
+  group_by(nta_name) %>%
+  summarize(num_trees=n(), num_species = length(unique(spc_common))) %>%
+  pivot_longer(cols = num_trees:num_species, 
+               names_to = "type_count",
+               values_to = "count")
+
+species_plot <- tree_species %>%
+  filter(type_count == "num_species") %>%
+  ggplot(aes(x = count, y = type_count)) +
+  geom_bar(stat = "identity", color = "#009252", fill = "#009252") +
+  labs(x = "Tree Species Count") +
+  theme(axis.text.y=element_blank(),
+        axis.title.y=element_blank()) +
+  theme_minimal()
+species_plot <- species_plot +
+  transition_states(nta_name,
+                    transition_length = 2,
+                    state_length = 1) +
+  labs(title = 'Number of Tree Species in: {closest_state}')
+
+animate(species_plot,fps = 1)
 
 ```
