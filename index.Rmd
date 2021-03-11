@@ -75,9 +75,6 @@ ggplot() +
 ### Version 2
 
 ```{r vis 1 ver 2}
-# Hyeonjin: adding labels, color formatting
-# Ping: adding caption/formatting
-
 # Count neighborhood trees
 trees_by_tract <- tree_census %>%
   group_by(tract = boro_ct) %>%
@@ -162,10 +159,7 @@ tree_damage %>%
 ### Version 2
 
 ```{r vis 2 ver 2}
-# General: formatting like flip
-# Vinita: simplifying code
-# initially line graph as fxn of number of problems
-
+# change values to 0/1 numeric
 tree_census[tree_census=="No"] <- 0
 tree_census[tree_census=="Yes"] <- 1
 
@@ -223,6 +217,7 @@ Column {.tabset}
 ### Version 1
 
 ```{r vis 3 ver 1}
+# count species types
 tree_species <- tree_census %>%
   group_by(nta_name) %>%
   summarize(num_trees=n(), num_species = length(unique(spc_common))) %>%
@@ -250,34 +245,19 @@ animate(species_plot,fps = 1)
 ### Version 2
 
 ```{r vis 3 ver 2}
-# maybe animate in sections?
-# Vinita: reduce bar width, increase time?
-# Ping: add subtitles, geom_bar()
+# count species types
+tree_species <- tree_census %>%  
+  group_by(nta_name, borough) %>%
+  summarize(num_species = length(unique(spc_common))) 
+tree_species$nta_name <- reorder(tree_species$nta_name, tree_species$num_species)
 
-# stuck on interactivity, so ...
-# also too many neighborhoods
-
-tree_species <- tree_census %>%
-  group_by(nta_name) %>%
-  summarize(num_trees=n(), num_species = length(unique(spc_common))) %>%
-  pivot_longer(cols = num_trees:num_species, 
-               names_to = "type_count",
-               values_to = "count")
-
-species_plot <- tree_species %>%
-  filter(type_count == "num_species") %>%
-  ggplot(aes(x = count, y = type_count)) +
-  geom_bar(stat = "identity", color = "#009252", fill = "#009252") +
+tree_species %>%
+  ggplot(aes(x = num_species, y = nta_name)) +
+  geom_bar(stat = "identity", fill = "#9dad7f", color = "#9dad7f") +
   labs(x = "Tree Species Count") +
-  theme(axis.text.y=element_blank(),
-        axis.title.y=element_blank()) +
-  theme_minimal()
-species_plot <- species_plot +
-  transition_states(nta_name,
-                    transition_length = 2,
-                    state_length = 1) +
-  labs(title = 'Number of Tree Species in: {closest_state}')
+  theme(axis.title.y=element_blank()) +
+  theme(axis.text.x = element_text(color = "black")) +
+  labs(title = 'Number of Tree Species in NYC Neighborhoods')
 
-animate(species_plot,fps = 1)
 
 ```
