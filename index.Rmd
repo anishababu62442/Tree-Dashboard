@@ -46,6 +46,15 @@ nyc_neighborhoods_df <- tidy(nyc_neighborhoods)
 Visualization 1
 ======================================================================
 
+What is this? {.sidebar}
+----------------------------------------------------------------------
+
+How many trees are there in each of the NYC neighborhoods? Trees and other plants can improve the environment and beauty of an area. This heat map of NYC serves to show which areas have more trees - and may therefore be preferable to live in.
+
+Version 1: Due to difficulties with the dataset (i.e. neighborhood names did not match up perfectly), some neighborhoods were left without any data, making this a very sparse visualization.
+
+Version 2: The second version used census tract regions. Due to standardization of census tract codes, all tracts in the dataset matched up (and only a handful did not have data). Additional styling changes improve the readability as well. 
+
 Column {.tabset}
 -----------------------------------------------------------------------
 
@@ -105,6 +114,15 @@ tree_tract %>%
 
 Visualization 2
 ======================================================================
+
+What is this? {.sidebar}
+----------------------------------------------------------------------
+
+What kinds of problems harm the health of trees in NYC? Here, the average diameter of NYC trees is plotted based on the type of problem observed (i.e. decorations, wiring, etc.). This aims to educate city planners and/or environmentalists on what kinds of tree additions may be most detrimental to tree health. (Tree diameter is used a proxy for tree health)
+
+Version 1: Unnecessary color and unsorted bars make it difficult to interpret this bar chart. 
+
+Version 2: The second version sorts problem type by problem location (branch/root/trunk), and sorts bars by average diameter to improve readability. Additional formatting also improves clarity.
 
 Column {.tabset}
 -----------------------------------------------------------------------
@@ -211,6 +229,17 @@ tree_damage %>%
 Visualization 3
 ======================================================================
 
+What is this? {.sidebar}
+----------------------------------------------------------------------
+
+Where can you find the most diverse distribution of trees in NYC? This visualization plots the number of tree species across different neighborhoods. Like the first visualization, this serves to demonstrate which areas of NYC may have the best environment and beauty.
+
+Version 1: Animation was used to cycle through each neighborhood. However, since only one neighborhood appears at a time, it is difficult to make comparisons
+
+Version 2: The second version displays all neighborhoods at once. However, with more than 100 different neighborhoods, the labels are jumbled and difficult to read.
+
+Version 3: The third version displays just the top ten and bottom ten neighborhoods for the number of tree species.
+
 Column {.tabset}
 -----------------------------------------------------------------------
 
@@ -259,5 +288,40 @@ tree_species %>%
   theme(axis.text.x = element_text(color = "black")) +
   labs(title = 'Number of Tree Species in NYC Neighborhoods')
 
+
+```
+
+### Version 3
+
+```{r vis 3 ver 3}
+# count species types
+tree_species <- tree_census %>%  
+  group_by(nta_name, borough) %>%
+  summarize(num_species = length(unique(spc_common))) 
+tree_species <- tree_species[order(tree_species$num_species),]
+
+tree_species <- rbind(head(tree_species,10), tail(tree_species,10))
+
+tree_species$nta_name[2] <- "East New York (Queens)"
+tree_species$nta_name[17] <- "East New York (Brooklyn)"
+tree_species$nta_name <- reorder(tree_species$nta_name, tree_species$num_species)
+
+highlight_species <- tree_species %>%
+  filter(num_species > 40)
+  
+tree_species %>%
+  ggplot(aes(x = num_species, y = nta_name)) +
+  geom_bar(stat = "identity", fill = "#9dad7f") +
+  geom_bar(stat = "identity", 
+           data = highlight_species,
+           aes(x=num_species,y=nta_name), 
+           fill='#0B6623') +
+  labs(x = "Tree Species Count") +
+  theme(axis.title.y=element_blank()) +
+  theme(axis.text.x = element_text(color = "black")) +
+  labs(title = 'Top/bottom NYC neighborhoods for tree diversity') +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "gray90")) +
+  theme(plot.title = element_text(hjust = 2))
 
 ```
