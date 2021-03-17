@@ -27,6 +27,7 @@ library(rgdal)
 library(gganimate)
 library(gifski)
 library(png)
+#remotes::install_github("mfherman/nycgeo")
 library(nycgeo)
 library(sf)
 
@@ -99,11 +100,11 @@ tree_tract %>%
   ggplot() +
   geom_sf(aes(fill=num_trees), lwd=0) +
   theme_minimal() +
-  geom_text(x=960000, y=130000, label="Staten\nIsland", color="gray50") +
-  geom_text(x=1045000, y=270000, label="Bronx", color="gray50") +
-  geom_text(x=974800, y=230000, label="Manhattan", color="gray50") +
-  geom_text(x=987000, y=143000, label="Brooklyn", color="gray50") +
-  geom_text(x=1059000, y=230000, label="Queens", color="gray50") +
+  annotate("text", x=960000, y=130000, label="Staten\nIsland", color="gray50") +
+  annotate("text", x=1045000, y=270000, label="Bronx", color="gray50") +
+  annotate("text", x=974800, y=230000, label="Manhattan", color="gray50") +
+  annotate("text", x=987000, y=143000, label="Brooklyn", color="gray50") +
+  annotate("text", x=1059000, y=230000, label="Queens", color="gray50") +
   labs(fill = "Number of Trees",
        title = "Distribution of Trees in NYC",
        caption = "Gray regions represent census tracts without data") +
@@ -131,6 +132,15 @@ Column {.tabset}
 
 ```{r vis 2 ver 1}
 # change values to 0/1 numeric
+# The below could also be done as follows, where .x is a place holder for the given column
+tree_census %>% 
+  mutate(
+    across(c(root_stone, root_grate, root_other, trunk_wire, 
+             trnk_light, trnk_other, brch_shoe , brch_light, 
+             brch_other),
+           ~as.numeric(ifelse(.x == "No", 0, 1)))
+    )
+
 tree_census[tree_census == "No"] <- "0"  
 tree_census[tree_census == "Yes"] <- "1"
 tree_census$root_stone <- as.numeric(tree_census$root_stone)
@@ -197,6 +207,7 @@ tree_damage <- tree_damage %>%
     startsWith(as.character(problem_type), "tr") ~ "Trunk",
     startsWith(as.character(problem_type), "ro") ~ "Root"))
 
+# The below could be done within mutate also
 tree_damage$problem_type <- as.factor(tree_damage$problem_type) 
 tree_damage$problem_type <- recode(tree_damage$problem_type, 
                                    brch_light="Hanging Lights/Wires",
